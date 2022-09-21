@@ -17,8 +17,8 @@ def makeMultipleTransactions():
             
 def makeTransaction(senderKey, receiverKey, amount):
     p = r.pipeline()
+    p.watch(senderKey)
     if (checkStudentBalance(senderKey, amount)):
-        p.watch(senderKey)
         senderMoney = p.get(senderKey)
         receiverMoney = p.get(receiverKey)
         p.multi()
