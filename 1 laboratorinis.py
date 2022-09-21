@@ -6,27 +6,28 @@ r = redis.Redis(host='localhost', port=49153, password="redispw")
 
 def makeMultipleTransactions():
     print("Make transaction: ")
-    makeNewTransaction = True
-    while (makeNewTransaction):
+    while (True):
         sender, receiver, amount = getSenderAndReceiver()
         makeTransaction(sender, receiver, amount)
         print("Make another transacton? Y, N: ")
         makeAnother = input()
         if (makeAnother == "N" or makeAnother == "n"):
-            makeNewTransaction = False
+            break
             
 def makeTransaction(senderKey, receiverKey, amount):
     p = r.pipeline()
     p.watch(senderKey)
     if (checkStudentBalance(senderKey, amount)):
+        p.multi()
         senderMoney = p.get(senderKey)
         receiverMoney = p.get(receiverKey)
-        p.multi()
         p.set(senderKey, float(senderMoney) - float(amount))
         p.set(receiverKey, float(receiverMoney) + float(amount))
+        senderBalance = p.get(senderKey)
+        receiverBalance = p.get(receiverKey)
         p.execute()
-        print("Sender balance: " + str(getStudentBalance(senderKey)))
-        print("Receiver balance: " + str(getStudentBalance(receiverKey)))
+        print("Sender balance: " + senderBalance)
+        print("Receiver balance: " + receiverBalance)
         return True
     else:
         print("No money, no honey")
@@ -78,47 +79,37 @@ def getStudentKey(name, surname): #2 different variables if two students with sa
 
 def createUsers():
     print("Creating users...")
-    createNewUser = True
-    while (createNewUser):
+    while (True):
         name, surname, balance = consoleUser()
-        studentKey = getStudentKey(name, surname)
-        if (name == "" or surname == ""):
-            print("Name cannot be empty")
+        if (name == "" or surname == "" or studentExist(studentKey) == 1):
+            print("Name is empty or already picked")
         else:
+            studentKey = getStudentKey(name, surname)
             print(studentKey + " Praejo")
-            setStudent(studentKey, balance)
-            print(getStudentBalance(studentKey))
+            setValueForKey(studentKey, balance)
+            print(getValueForKey(studentKey))
             print(r.keys())
             print("Add another student? Y, N: ")
             addAnother = input()
             if (addAnother == "N" or addAnother == "n"):
-                createNewUser = False
+                break
 
 # Helper functions
-def setStudent(key, balance):
+def setValueForKey(key, balance):
     return r.set(key, balance)
 
-def getStudentBalance(key):
+def getValueForKey(key):
     return r.get(key)
 
 def checkStudentBalance(key, amount):
-    if (float(getStudentBalance(key)) >= float(amount)):
-        return True
-    else:
-        return False
+    return float(getValueForKey(key)) >= float(amount)
     
 def studentExist(key):
-    if (r.exists(key) == 1):
-        return True
-    else:
-        return False
+    return r.exists(key) == 1
 
 def checkAmount(amount):
     if (type(amount) == int or type(amount) == float):
-        if (amount > 0):
-            return True
-        else:
-            return False
+        return amount > 0
     else:
         return False
 
